@@ -1,0 +1,8 @@
+node_modules
+# IntelliJ Idea:
+*.iml
+*.ipr
+*.iws
+.idea/
+.env
+.env

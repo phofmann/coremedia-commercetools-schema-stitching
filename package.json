@@ -13,7 +13,7 @@
     "apollo-link-context": "^1.0.8",
     "apollo-link-http": "^1.5.4",
     "apollo-link-persisted-queries": "^0.2.2",
-    "apollo-server": "^2.14.1",
+    "apollo-server": "^2.14.2",
     "dotenv": "^8.2.0",
     "graphql": "^14.6.0",
     "graphql-tools": "^4.0.8"

@@ -22,3 +22,12 @@ afterwards run
 yarn start
 ```
 and open http://localhost:4000
+
+## Building docker container
+```shell
+docker build -t <REGISTRY_NAME>/schema-stitching-app .
+```
+
+```shell
+docker run -p 12345:4000 -e COREMEDIA_ENDPOINT= -e COREMEDIA_SCHEMA_PREFIX= -e CT_PROJECT_KEY=cm-kre-test -e CT_CLIENT_ID= -e CT_CLIENT_SECRET= -e CT_SCOPE= -e CT_AUTH_HOST= -e CT_API_HOST=  <REGISTRY_NAME>/schema-stitching-app:latest
+```

@@ -1,19 +1,23 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "moduleResolution": "node",
+    "module": "commonjs",
+    "target": "esnext",
     "sourceMap": true,
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "removeComments": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": true,
+    "newLine": "LF",
+    "useDefineForClassFields": true,
+    "esModuleInterop": true,
+    "moduleResolution": "Node",
     "lib": [
-      "es2015"
+      "es5",
+      "esnext"
     ],
-    "allowJs": true
+    "baseUrl": ".",
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "types": [
+      "node"
+    ]
   }
 }

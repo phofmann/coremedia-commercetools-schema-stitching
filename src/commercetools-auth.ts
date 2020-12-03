@@ -28,6 +28,10 @@ const tokenProvider = new TokenProvider({
 const buildAuthorizationHeader = () => tokenProvider.getTokenInfo()
         .then(tokenInfo => `${tokenInfo.token_type} ${tokenInfo.access_token}`);
 
+const cleanUpSession = async () => {
+
+}
+
 export function getAuthToken() {
   return buildAuthorizationHeader().catch((error) => {
     // eslint-disable-next-line no-console

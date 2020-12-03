@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon --inspect --ext ts --exec 'ts-node' src/index.ts",
+    "start": "node --inspect=5858 -r ts-node/register ./src/index.ts",
     "build": "tsc --build && babel ./src --out-dir ./dist --extensions \".ts,.js\""
   },
   "dependencies": {
@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/graphql": "^14.5.0",
     "cross-fetch": "^3.0.4",
-    "nodemon": "^1.11.0",
+    "nodemon": "^2.0.6",
     "@babel/cli": "^7.10.5",
     "@babel/core": "^7.11.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",

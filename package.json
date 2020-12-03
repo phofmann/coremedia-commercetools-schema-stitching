@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node --inspect=5858 -r ts-node/register ./src/index.ts",
-    "build": "tsc --build && babel ./src --out-dir ./dist --extensions \".ts,.js\""
+    "build": "tsc --build && babel ./src --out-dir ./dist --extensions \".ts,.js\"",
+    "lint": "eslint --fix \"src/**/*.+(ts|tsx)\""
   },
   "dependencies": {
     "@commercetools/sdk-auth": "^3.0.7",
@@ -20,16 +21,21 @@
     "graphql-tools": "^4.0.8"
   },
   "devDependencies": {
-    "@types/graphql": "^14.5.0",
-    "cross-fetch": "^3.0.4",
-    "nodemon": "^2.0.6",
     "@babel/cli": "^7.10.5",
     "@babel/core": "^7.11.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",
     "@babel/plugin-proposal-object-rest-spread": "^7.11.0",
     "@babel/preset-env": "^7.11.0",
     "@babel/preset-typescript": "^7.10.4",
+    "@types/graphql": "^14.5.0",
     "@types/node": "^14.0.14",
+    "@typescript-eslint/eslint-plugin": "^4.6.0",
+    "@typescript-eslint/parser": "^4.6.0",
+    "cross-fetch": "^3.0.4",
+    "eslint": "^7.12.1",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "nodemon": "^2.0.6",
     "prettier": "^2.0.5",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.5"

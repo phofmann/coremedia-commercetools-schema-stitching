@@ -2,8 +2,6 @@ import fetch from "cross-fetch";
 import SdkAuth, { TokenProvider } from "@commercetools/sdk-auth";
 import * as dotenv from "dotenv";
 
-function onTokenInfoChanged(tokenInfo) {}
-
 const tokenInfo = null;
 
 dotenv.config();
@@ -21,17 +19,16 @@ const tokenProvider = new TokenProvider(
       fetch: fetch,
     }),
     fetchTokenInfo: (sdkAuth) => sdkAuth.anonymousFlow(),
-    onTokenInfoChanged: (tokenInfo) => onTokenInfoChanged(tokenInfo),
   },
   tokenInfo
 );
 
-const buildAuthorizationHeader = () =>
+const buildAuthorizationHeader = (): Promise<string> =>
   tokenProvider
     .getTokenInfo()
     .then((tokenInfo) => `${tokenInfo.token_type} ${tokenInfo.access_token}`);
 
-export function getAuthToken() {
+export function getAuthToken(): Promise<string> {
   return buildAuthorizationHeader().catch((error) => {
     console.warn(
       "Could not connect to commercetools, cleaning up session...",

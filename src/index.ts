@@ -1,16 +1,37 @@
-import {delegateToSchema, mergeSchemas} from 'graphql-tools';
-import {ApolloServer} from 'apollo-server';
-import getCoreMediaSchema from "./coremedia"
-import getCommercetoolsSchema from "./commercetools";
+import { getAuthToken } from "./commercetools-auth";
+import makeRemoteExecutor from "./makeRemoteExecutor";
+
+import {
+  introspectSchema,
+  RenameRootFields,
+  RenameTypes,
+  wrapSchema,
+} from "@graphql-tools/wrap";
+import { stitchSchemas } from "@graphql-tools/stitch";
+import { delegateToSchema } from "@graphql-tools/delegate";
 import * as dotenv from "dotenv";
 
+import express from "express";
+import { graphqlHTTP } from "express-graphql";
+import { GraphQLResolveInfo } from "graphql";
 
-async function run() {
-    const ctSchema = await getCommercetoolsSchema()
-    let coreMediaSchemaPrefix = process.env.COREMEDIA_SCHEMA_PREFIX || '';
-    const coreMediaSchema = await getCoreMediaSchema(coreMediaSchemaPrefix);
+async function makeGatewaySchema() {
+  dotenv.config();
+  const coreMediaSchemaPrefix = process.env.COREMEDIA_SCHEMA_PREFIX || "";
+  const coremediaSchema = makeRemoteExecutor(
+    process.env.COREMEDIA_ENDPOINT || "https://localhost:41080/graphql"
+  );
 
-    const linkSchemaDefs = `
+  const headers = await getAuthToken();
+  const ctSchema = makeRemoteExecutor(
+    process.env.CT_API_HOST + "/" + process.env.CT_PROJECT_KEY + "/graphql",
+    {
+      "Content-Type": "application/json",
+      Authorization: headers,
+    }
+  );
+
+  const linkSchemaDefs = `
         extend type ${coreMediaSchemaPrefix}CMExternalChannelImpl {
             ctCategory: Category
         }
@@ -20,187 +41,118 @@ async function run() {
         extend type ${coreMediaSchemaPrefix}CMProductTeaserImpl {
             ctProduct: Product
         }
-  `
-    const resolvers = {
-        CM_CMExternalChannelImpl: {
-            ctCategory: (cmExternalChannel: any, args: {}, context: any, info: any) => {
-                const externalId = cmExternalChannel.externalId.substr("commercetools:///catalog/category/".length, cmExternalChannel.externalId.length);
-                return delegateToSchema({
-                        schema: ctSchema, operation: 'query', fieldName: 'category',
-                        args: {
-                            id: externalId
-                        },
-                        context: context,
-                        info: info,
-                    }
-                );
-            },
-        },
-        CM_CMExternalProductImpl: {
-            ctProduct: (cmExternalProduct: any, args: {}, context: any, info: any) => {
-                const externalId = cmExternalProduct.externalId.substr("commercetools:///catalog/product/".length, cmExternalProduct.externalId.length);
-                return delegateToSchema({
-                        schema: ctSchema, operation: 'query', fieldName: 'product',
-                        args: {
-                            id: externalId
-                        },
-                        context: context,
-                        info: info,
-                    }
-                );
-            },
-        },
-        CM_CMProductTeaserImpl: {
-            ctProduct: (cmProductTeaser: any, args: {}, context: any, info: any) => {
-                const externalId = cmProductTeaser.externalId.substr("commercetools:///catalog/product/".length, cmProductTeaser.externalId.length);
-                return delegateToSchema({
-                        schema: ctSchema, operation: 'query', fieldName: 'product',
-                        args: {
-                            id: externalId
-                        },
-                        context: context,
-                        info: info,
-                    }
-                );
-            },
-        },
-    };
-
-    const schema = mergeSchemas({
-        schemas: [ctSchema, coreMediaSchema, linkSchemaDefs],
-        resolvers: resolvers,
-    })
-
-    const server = new ApolloServer({
-        schema: schema,
-        playground: {
-            settings: {
-                'editor.theme': 'dark',
-            },
-            tabs: [
-                {
-                    endpoint: '',
-                    name: 'Page by Segment',
-                    query: `query PageQuery($path: String!) {
-  CM_content {
-    pageByPath(path: $path) {
-      grid {
-        cssClassName
-        rows {
-          placements {
-            items {
-              ...ExternalChannel
-              ...ExternalProduct
-              ...ExternalProductTeaser
-              ...Teasable
-            }
-          }
+        extend type Category {
+          augmentation: ${coreMediaSchemaPrefix}CMExternalChannelImpl
         }
-      }
-    }
-  }
-}
+  `;
+  const wrappedCtSchema = wrapSchema({
+    schema: await introspectSchema(ctSchema),
+    executor: ctSchema,
+  });
+  const wrappedCoreMediaSchema = wrapSchema({
+    schema: await introspectSchema(coremediaSchema),
+    executor: coremediaSchema,
+  });
 
-fragment ExternalProductTeaser on CM_CMProductTeaserImpl {
-  id
-  externalId
-  ctProduct {
-    ...CTProduct
-  }
-}
-
-fragment ExternalProduct on CM_CMExternalProductImpl {
-  id
-  externalId
-  ctProduct {
-    ...CTProduct
-  }
-}
-
-fragment ExternalChannel on CM_CMExternalChannelImpl {
-  id
-  externalId
-  segment
-  ctCategory {
-    ...CTCategory
-  }
-}
-
-fragment CTProduct on Product {
-  id
-  version
-  masterData {
-    current {
-      name(locale: "en")
-      nameAllLocales {
-        locale
-        value
-      }
-    }
-  }
-}
-
-fragment CTCategory on Category {
-  id
-  key
-  version
-  name(locale: "en")
-  nameAllLocales {
-    locale
-    value
-  }
-  description(locale: "en")
-  descriptionAllLocales {
-    locale
-    value
-  }
-  slug(locale: "en")
-  slugAllLocales {
-    locale
-    value
-  }
-  ancestorsRef {
-    typeId
-    id
-  }
-  ancestors {
-    id
-  }
-  children {
-    id
-  }
-  stagedProductCount
-}
-
-fragment Teasable on CM_CMTeasable {
-  teaserTarget {
-    ...ExternalChannel
-    ...ExternalProduct
-  }
-  teaserTargets {
-    target {
-      ...ExternalChannel
-      ...ExternalProduct
-    }
-  }
-}
-`,
-                    variables: `{
-  "path": "commercetools-en-us"
-}`,
-                }
-            ]
-            ,
+  const resolvers = {
+    CM_CMExternalChannelImpl: {
+      ctCategory: {
+        selectionSet: `{ externalId }`,
+        resolve(
+          cmExternalCategory,
+          args: Record<string, string>,
+          context: Record<string, string>,
+          info: GraphQLResolveInfo
+        ) {
+          const externalId = cmExternalCategory.externalId.substr(
+            "ct:///catalog/category/".length,
+            cmExternalCategory.externalId.length
+          );
+          return delegateToSchema({
+            schema: wrappedCtSchema,
+            operation: "query",
+            fieldName: "category",
+            args: { key: externalId },
+            context,
+            info,
+          });
         },
-    });
-    server.listen().then(({url}) => {
-        console.log(`Server running. Open ${url} to run queries.`)
-    });
+      },
+    },
+    CM_CMExternalProductImpl: {
+      ctProduct: (
+        cmExternalProduct: any,
+        args: Record<string, any>,
+        context: Record<string, any>,
+        info: GraphQLResolveInfo
+      ) => {
+        const externalId = cmExternalProduct.externalId.substr(
+          "ct:///catalog/product/".length,
+          cmExternalProduct.externalId.length
+        );
+        return delegateToSchema({
+          schema: wrappedCtSchema,
+          operation: "query",
+          fieldName: "product",
+          args: {
+            id: externalId,
+          },
+          context: context,
+          info: info,
+        });
+      },
+    },
+    CM_CMProductTeaserImpl: {
+      ctProduct: (
+        cmProductTeaser: any,
+        args: Record<string, any>,
+        context: Record<string, any>,
+        info: GraphQLResolveInfo
+      ) => {
+        const externalId = cmProductTeaser.externalId.substr(
+          "ct:///catalog/product/".length,
+          cmProductTeaser.externalId.length
+        );
+        return delegateToSchema({
+          schema: wrappedCtSchema,
+          operation: "query",
+          fieldName: "product",
+          args: {
+            id: externalId,
+          },
+          context: context,
+          info: info,
+        });
+      },
+    },
+  };
+
+  return stitchSchemas({
+    subschemas: [
+      {
+        schema: wrappedCtSchema,
+        executor: ctSchema,
+      },
+      {
+        schema: wrappedCoreMediaSchema,
+        executor: coremediaSchema,
+        transforms: [
+          new RenameTypes((type) => `${coreMediaSchemaPrefix}${type}`),
+          new RenameRootFields(
+            (operation, name) => `${coreMediaSchemaPrefix}${name}`
+          ),
+        ],
+      },
+    ],
+    resolvers: resolvers,
+    typeDefs: linkSchemaDefs,
+  });
 }
 
-try {
-    dotenv.config();
-    run();
-} catch (e) {
-    console.log(e, e.message, e.stack);
-}
+makeGatewaySchema().then((schema) => {
+  const app = express();
+  app.use("/graphql", graphqlHTTP({ schema, graphiql: true }));
+  app.listen(4000, () =>
+    console.log("gateway running at http://localhost:4000/graphql")
+  );
+});
